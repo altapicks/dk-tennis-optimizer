@@ -4,61 +4,287 @@ import numpy as np
 from itertools import combinations
 import io
 import math
+import base64
+import os
 
 # ============================================================
-# CONFIG
+# PAGE CONFIG
 # ============================================================
 st.set_page_config(
-    page_title="DK Tennis Optimizer",
-    page_icon="🎾",
+    page_title="AltaPicks Tennis",
+    page_icon="⛰️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# DK Scoring - Best of 3
+# ============================================================
+# BRAND COLORS
+# ============================================================
+NAVY = "#1B3A6B"
+DARK_BG = "#0D1117"
+CARD_BG = "#161B22"
+BORDER = "#21262D"
+ACCENT = "#3B82F6"
+ACCENT_DARK = "#1E40AF"
+ACCENT_GLOW = "#60A5FA"
+TEXT = "#E2E8F0"
+TEXT_MUTED = "#8B949E"
+TEXT_DIM = "#484F58"
+SUCCESS = "#3B82F6"
+DANGER = "#EF4444"
+HIGHLIGHT_CELL = "#1E3A5F"
+
+# ============================================================
+# DK SCORING
+# ============================================================
 SCORING = {
-    "match_played": 30,
-    "game_won": 2.5,
-    "game_lost": -2,
-    "set_won": 6,
-    "set_lost": -3,
-    "match_won": 6,
-    "ace": 0.4,
-    "df": -1,
-    "break": 0.75,
-    "clean_set": 4,
-    "straight_sets": 6,
-    "no_df": 2.5,
-    "ace_10plus": 2,
+    "match_played": 30, "game_won": 2.5, "game_lost": -2,
+    "set_won": 6, "set_lost": -3, "match_won": 6,
+    "ace": 0.4, "df": -1, "break": 0.75,
+    "clean_set": 4, "straight_sets": 6, "no_df": 2.5, "ace_10plus": 2,
 }
 
 # ============================================================
-# STYLING
+# CSS
 # ============================================================
-st.markdown("""
+def load_logo_b64():
+    logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    return ""
+
+LOGO_B64 = load_logo_b64()
+
+st.markdown(f"""
 <style>
-    .stApp { background-color: #0e1117; }
-    div[data-testid="stMetric"] {
-        background-color: #1a1f2e;
-        border: 1px solid #2d3748;
+    /* ── Base ───────────────────────────────── */
+    .stApp {{ background-color: {DARK_BG}; }}
+    section[data-testid="stSidebar"] {{ background-color: {CARD_BG}; border-right: 1px solid {BORDER}; }}
+    section[data-testid="stSidebar"] .stMarkdown h1,
+    section[data-testid="stSidebar"] .stMarkdown h2,
+    section[data-testid="stSidebar"] .stMarkdown h3 {{ color: {TEXT}; }}
+
+    /* ── Tabs ──────────────────────────────── */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 0px;
+        background: {CARD_BG};
         border-radius: 8px;
-        padding: 12px;
-    }
-    .match-header {
-        background: linear-gradient(135deg, #1a472a 0%, #2d5a3f 100%);
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-bottom: 8px;
-        font-weight: 600;
-        font-size: 16px;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        padding: 8px 20px;
+        padding: 4px;
+        border: 1px solid {BORDER};
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        padding: 10px 24px;
         border-radius: 6px;
-    }
+        color: {TEXT_MUTED};
+        font-weight: 500;
+        font-size: 14px;
+    }}
+    .stTabs [aria-selected="true"] {{
+        background: {NAVY} !important;
+        color: white !important;
+        font-weight: 600;
+    }}
+
+    /* ── Cards ─────────────────────────────── */
+    .ap-card {{
+        background: {CARD_BG};
+        border: 1px solid {BORDER};
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+    }}
+    .ap-card-header {{
+        font-size: 15px;
+        font-weight: 600;
+        color: {TEXT};
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }}
+    .ap-card-accent {{
+        border-left: 3px solid {ACCENT};
+    }}
+
+    /* ── Match Header ─────────────────────── */
+    .match-bar {{
+        background: linear-gradient(135deg, {NAVY} 0%, #234980 100%);
+        padding: 10px 16px;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        font-weight: 600;
+        font-size: 14px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }}
+    .match-bar .win-pct {{
+        background: rgba(255,255,255,0.15);
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 13px;
+    }}
+
+    /* ── Lineup Cards ─────────────────────── */
+    .lineup-card {{
+        background: {CARD_BG};
+        border: 1px solid {BORDER};
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 8px;
+        font-size: 13px;
+    }}
+    .lineup-card .lu-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid {BORDER};
+        font-weight: 600;
+        color: {TEXT};
+    }}
+    .lineup-card .lu-proj {{
+        color: {ACCENT_GLOW};
+        font-size: 14px;
+    }}
+    .lineup-card .lu-row {{
+        display: flex;
+        justify-content: space-between;
+        padding: 3px 0;
+        color: {TEXT_MUTED};
+        font-size: 12px;
+    }}
+    .lineup-card .lu-row .lu-name {{
+        color: {TEXT};
+        font-weight: 500;
+        flex: 1;
+    }}
+    .lineup-card .lu-row .lu-opp {{
+        color: {TEXT_DIM};
+        flex: 1;
+        text-align: left;
+    }}
+    .lineup-card .lu-row .lu-sal {{
+        width: 55px;
+        text-align: right;
+    }}
+    .lineup-card .lu-row .lu-pts {{
+        width: 45px;
+        text-align: right;
+        color: {ACCENT_GLOW};
+    }}
+    .lineup-card .lu-footer {{
+        display: flex;
+        justify-content: space-between;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid {BORDER};
+        font-weight: 600;
+        font-size: 12px;
+        color: {TEXT};
+    }}
+
+    /* ── Projection Table ─────────────────── */
+    .proj-highlight {{
+        background: {HIGHLIGHT_CELL};
+        color: {ACCENT_GLOW};
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: 600;
+        display: inline-block;
+        min-width: 50px;
+        text-align: center;
+    }}
+
+    /* ── Metric Overrides ─────────────────── */
+    div[data-testid="stMetric"] {{
+        background: {CARD_BG};
+        border: 1px solid {BORDER};
+        border-radius: 8px;
+        padding: 14px 16px;
+    }}
+    div[data-testid="stMetric"] label {{ color: {TEXT_MUTED} !important; font-size: 12px !important; }}
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{ color: {ACCENT_GLOW} !important; }}
+
+    /* ── Buttons ───────────────────────────── */
+    .stButton > button[kind="primary"] {{
+        background: linear-gradient(135deg, {NAVY} 0%, {ACCENT_DARK} 100%) !important;
+        border: none !important;
+        font-weight: 600 !important;
+    }}
+    .stButton > button[kind="primary"]:hover {{
+        background: linear-gradient(135deg, {ACCENT_DARK} 0%, {ACCENT} 100%) !important;
+    }}
+    .stDownloadButton > button {{
+        background: {CARD_BG} !important;
+        border: 1px solid {ACCENT} !important;
+        color: {ACCENT_GLOW} !important;
+        font-weight: 500 !important;
+    }}
+    .stDownloadButton > button:hover {{
+        background: {NAVY} !important;
+        color: white !important;
+    }}
+
+    /* ── Inputs ────────────────────────────── */
+    .stNumberInput > div > div > input {{
+        background: {DARK_BG} !important;
+        border: 1px solid {BORDER} !important;
+        color: {TEXT} !important;
+        font-size: 13px !important;
+    }}
+    .stSelectbox > div > div {{ background: {DARK_BG} !important; }}
+
+    /* ── Expander ──────────────────────────── */
+    .streamlit-expanderHeader {{
+        background: {CARD_BG} !important;
+        border: 1px solid {BORDER} !important;
+        border-radius: 8px !important;
+        font-weight: 500 !important;
+    }}
+
+    /* ── Dataframe ─────────────────────────── */
+    .stDataFrame {{ border-radius: 8px; overflow: hidden; }}
+
+    /* ── Logo ──────────────────────────────── */
+    .sidebar-logo {{
+        text-align: center;
+        padding: 16px 0 8px 0;
+    }}
+    .sidebar-logo img {{
+        width: 120px;
+        opacity: 0.95;
+    }}
+    .sidebar-brand {{
+        text-align: center;
+        font-size: 11px;
+        color: {TEXT_DIM};
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        margin-top: 4px;
+        margin-bottom: 16px;
+    }}
+
+    /* ── Section Headers ──────────────────── */
+    .section-header {{
+        font-size: 20px;
+        font-weight: 700;
+        color: {TEXT};
+        margin-bottom: 4px;
+    }}
+    .section-sub {{
+        font-size: 13px;
+        color: {TEXT_MUTED};
+        margin-bottom: 16px;
+    }}
+
+    /* ── Hide Streamlit branding ───────────── */
+    #MainMenu {{ visibility: hidden; }}
+    footer {{ visibility: hidden; }}
+    header {{ visibility: hidden; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -66,54 +292,36 @@ st.markdown("""
 # HELPERS
 # ============================================================
 def american_to_prob(odds):
-    """Convert American odds to implied probability (vig-included)."""
-    if odds is None or odds == 0:
-        return 0.5
-    if odds > 0:
-        return 100 / (odds + 100)
-    else:
-        return abs(odds) / (abs(odds) + 100)
+    if odds is None or odds == 0: return 0.5
+    if odds > 0: return 100 / (odds + 100)
+    return abs(odds) / (abs(odds) + 100)
 
 def remove_vig_pair(p1, p2):
-    """Remove vig from a pair of implied probabilities."""
     total = p1 + p2
-    if total == 0:
-        return 0.5, 0.5
+    if total == 0: return 0.5, 0.5
     return p1 / total, p2 / total
 
 def poisson_ev_from_milestone(odds, milestone):
-    """Estimate expected value from a milestone (X+) odds using Poisson.
-    P(X >= k) = 1 - CDF(k-1). Solve for lambda."""
     p = american_to_prob(odds)
-    if p <= 0 or p >= 1:
-        return milestone
-    # For P(X >= k) = p, find lambda
-    # Use Newton's method on Poisson CDF
-    lam = milestone  # start guess
+    if p <= 0 or p >= 1: return milestone
+    lam = milestone
     for _ in range(50):
-        # P(X < k) = sum(e^-lam * lam^i / i! for i in range(k))
         cdf = sum(math.exp(-lam) * lam**i / math.factorial(i) for i in range(milestone))
-        target = 1 - p  # CDF(k-1) = 1 - P(X >= k)
-        if abs(cdf - target) < 0.001:
-            break
-        # Derivative of CDF w.r.t. lambda
+        target = 1 - p
+        if abs(cdf - target) < 0.001: break
         dcdf = sum(math.exp(-lam) * (i * lam**(i-1) / math.factorial(i) - lam**i / math.factorial(i))
                     for i in range(milestone))
-        if abs(dcdf) < 1e-10:
-            break
+        if abs(dcdf) < 1e-10: break
         lam -= (cdf - target) / dcdf
         lam = max(0.1, min(lam, 30))
     return lam
 
 def parse_dk_csv(uploaded_file):
-    """Parse DraftKings salary CSV and extract player data."""
     content = uploaded_file.read().decode('utf-8')
     lines = content.strip().split('\n')
-
     players = []
     for line in lines:
         parts = line.split(',')
-        # Look for rows with player data: Position, Name+ID, Name, ID, RosterPos, Salary, GameInfo, Team, AvgPPG
         if len(parts) >= 16:
             try:
                 name = parts[9].strip()
@@ -122,522 +330,391 @@ def parse_dk_csv(uploaded_file):
                 game_info = parts[13].strip()
                 avg_ppg = float(parts[15].strip()) if parts[15].strip() else 0
                 if name and player_id.isdigit() and salary > 0:
-                    # Parse opponent from game_info: "Player1@Player2 date time"
                     match_str = game_info.split(' ')[0] if game_info else ''
                     players.append({
-                        'name': name,
-                        'id': int(player_id),
-                        'salary': salary,
-                        'game_info': game_info,
-                        'match_str': match_str,
-                        'avg_ppg': avg_ppg,
+                        'name': name, 'id': int(player_id), 'salary': salary,
+                        'game_info': game_info, 'match_str': match_str, 'avg_ppg': avg_ppg,
                     })
             except (ValueError, IndexError):
                 continue
     return players
 
 def detect_matches(players):
-    """Auto-detect matches from game_info strings."""
     match_map = {}
     for p in players:
         key = p['match_str']
-        if key not in match_map:
-            match_map[key] = []
+        if key not in match_map: match_map[key] = []
         match_map[key].append(p['name'])
-
     matches = []
     for key, names in match_map.items():
         if len(names) == 2:
-            matches.append({
-                'key': key,
-                'player_a': names[0],
-                'player_b': names[1],
-                'game_info': key,
-            })
+            matches.append({'key': key, 'player_a': names[0], 'player_b': names[1]})
     return matches
 
 def build_projection(odds, scoring=SCORING):
-    """Build DK projection from sportsbook odds for one player."""
-    # Win probability
     wp = odds.get('win_prob', 0.5)
-
-    # Games
     games_won = odds.get('games_won', 10)
     games_lost = odds.get('games_lost', 10)
-
-    # Sets
     p_straight_win = odds.get('p_straight_win', wp * 0.6)
     p_straight_loss = odds.get('p_straight_loss', (1 - wp) * 0.6)
+    p_win_3 = wp - p_straight_win
+    p_lose_3 = (1 - wp) - p_straight_loss
     p_3set = 1 - p_straight_win - p_straight_loss
-
     e_sets_played = 2 * (1 - p_3set) + 3 * p_3set
-    e_sets_won = 2 * p_straight_win + 1 * (wp - p_straight_win) + 1 * p_straight_loss + 0 * ((1-wp) - p_straight_loss)
-    # Simpler: E[SW] = 2*P(win 2-0) + 1*P(win 2-1) + 1*P(lose 1-2) + 0*P(lose 0-2)
-    p_win_3 = wp - p_straight_win  # P(win 2-1)
-    p_lose_3 = (1 - wp) - p_straight_loss  # P(lose 1-2)
-    e_sets_won = 2 * p_straight_win + 2 * p_win_3 + 1 * p_lose_3 + 0 * p_straight_loss
+    e_sets_won = 2 * p_straight_win + 2 * p_win_3 + 1 * p_lose_3
     e_sets_lost = e_sets_played - e_sets_won
-
-    # Aces
     aces = odds.get('aces', 3)
     p_10plus_aces = odds.get('p_10plus_aces', 0)
-
-    # DFs
     dfs = odds.get('dfs', 3)
     p_no_df = odds.get('p_no_df', math.exp(-dfs))
-
-    # Breaks
     breaks = odds.get('breaks', wp * 3 + (1 - wp) * 1.5)
-
-    # Clean set probability (per set won)
     clean_rate = odds.get('clean_set_rate', 0.05 + 0.15 * wp)
     e_clean_sets = e_sets_won * clean_rate
-
-    # User projection adjustment
     adj = odds.get('adjustment', 0)
-
-    # Calculate score
     score = (
-        scoring["match_played"]
-        + scoring["match_won"] * wp
-        + scoring["set_won"] * e_sets_won
-        + scoring["set_lost"] * e_sets_lost
-        + scoring["game_won"] * games_won
-        + scoring["game_lost"] * games_lost
-        + scoring["ace"] * aces
-        + scoring["df"] * dfs
-        + scoring["break"] * breaks
-        + scoring["straight_sets"] * p_straight_win
-        + scoring["clean_set"] * e_clean_sets
-        + scoring["no_df"] * p_no_df
-        + scoring["ace_10plus"] * p_10plus_aces
-        + adj
+        scoring["match_played"] + scoring["match_won"] * wp
+        + scoring["set_won"] * e_sets_won + scoring["set_lost"] * e_sets_lost
+        + scoring["game_won"] * games_won + scoring["game_lost"] * games_lost
+        + scoring["ace"] * aces + scoring["df"] * dfs + scoring["break"] * breaks
+        + scoring["straight_sets"] * p_straight_win + scoring["clean_set"] * e_clean_sets
+        + scoring["no_df"] * p_no_df + scoring["ace_10plus"] * p_10plus_aces + adj
     )
-
     return {
-        'score': round(score, 2),
-        'wp': round(wp, 3),
-        'games_won': round(games_won, 2),
-        'games_lost': round(games_lost, 2),
-        'sets_won': round(e_sets_won, 3),
-        'sets_lost': round(e_sets_lost, 3),
+        'score': round(score, 2), 'wp': round(wp, 3),
+        'games_won': round(games_won, 2), 'games_lost': round(games_lost, 2),
+        'sets_won': round(e_sets_won, 3), 'sets_lost': round(e_sets_lost, 3),
         'sets_played': round(e_sets_played, 3),
-        'aces': round(aces, 2),
-        'dfs': round(dfs, 2),
-        'breaks': round(breaks, 2),
-        'p_straight': round(p_straight_win, 3),
-        'p_3set': round(p_3set, 3),
-        'p_no_df': round(p_no_df, 4),
-        'p_10plus_aces': round(p_10plus_aces, 3),
+        'aces': round(aces, 2), 'dfs': round(dfs, 2), 'breaks': round(breaks, 2),
+        'p_straight': round(p_straight_win, 3), 'p_3set': round(p_3set, 3),
+        'p_no_df': round(p_no_df, 4), 'p_10plus_aces': round(p_10plus_aces, 3),
         'clean_sets': round(e_clean_sets, 3),
     }
 
 def run_optimizer(players_data, n_lineups=45, salary_cap=50000, lineup_size=6):
-    """Run lineup optimizer with exposure caps."""
-    # Build match structure
     idx_map = {p['name']: i for i, p in enumerate(players_data)}
-    seen = set()
-    matches = []
+    seen = set(); matches = []
     for p in players_data:
-        if p['name'] in seen:
-            continue
+        if p['name'] in seen: continue
         opp = p['opponent']
         if opp in idx_map:
-            matches.append((p['name'], opp))
-            seen.add(p['name'])
-            seen.add(opp)
-
+            matches.append((p['name'], opp)); seen.add(p['name']); seen.add(opp)
     match_options = []
     for a, b in matches:
-        pa = players_data[idx_map[a]]
-        pb = players_data[idx_map[b]]
-        match_options.append([
-            (idx_map[a], pa['salary'], pa['projection']),
-            (idx_map[b], pb['salary'], pb['projection']),
-        ])
-
-    n_matches = len(match_options)
-
-    # Generate all valid lineups
+        pa, pb = players_data[idx_map[a]], players_data[idx_map[b]]
+        match_options.append([(idx_map[a], pa['salary'], pa['projection']),
+                              (idx_map[b], pb['salary'], pb['projection'])])
     all_lineups = []
-    for mc in combinations(range(n_matches), lineup_size):
+    for mc in combinations(range(len(match_options)), lineup_size):
         for bits in range(2**lineup_size):
-            ts = 0; tp = 0.0; pidxs = []
+            ts=0; tp=0.0; pidxs=[]
             for i, mi in enumerate(mc):
                 side = (bits >> i) & 1
                 pid, sal, proj = match_options[mi][side]
                 ts += sal; tp += proj; pidxs.append(pid)
             if ts <= salary_cap:
-                all_lineups.append((round(tp, 2), ts, tuple(pidxs)))
-
+                all_lineups.append((round(tp,2), ts, tuple(pidxs)))
     all_lineups.sort(key=lambda x: -x[0])
 
-    # Exposure caps
-    max_caps = {}
-    min_caps = {}
+    max_caps, min_caps = {}, {}
     for p in players_data:
         if p.get('max_exposure') is not None:
             max_caps[p['name']] = max(1, int(round(n_lineups * p['max_exposure'] / 100)))
         if p.get('min_exposure') is not None and p['min_exposure'] > 0:
             min_caps[p['name']] = max(1, int(round(n_lineups * p['min_exposure'] / 100)))
-
-    default_cap = int(n_lineups * 0.60)  # 60% default max
-
-    # Match caps
+    default_cap = int(n_lineups * 0.60)
     match_caps_dict = {}
     for a, b in matches:
-        pa = players_data[idx_map[a]]
-        pb = players_data[idx_map[b]]
+        pa, pb = players_data[idx_map[a]], players_data[idx_map[b]]
         mc = pa.get('match_max_exposure')
         if mc is not None:
             match_caps_dict[frozenset({a, b})] = max(1, int(round(n_lineups * mc / 100)))
 
-    # Selection state
-    selected = []
-    selected_keys = set()
+    selected = []; selected_keys = set()
     player_counts = [0] * len(players_data)
     match_counts = {mc: 0 for mc in match_caps_dict}
 
     def can_add(pidxs):
         for pid in pidxs:
             nm = players_data[pid]['name']
-            cap = max_caps.get(nm, default_cap)
-            if player_counts[pid] + 1 > cap:
-                return False
+            if player_counts[pid] + 1 > max_caps.get(nm, default_cap): return False
         for mc_key, mc_cap in match_caps_dict.items():
             hit = sum(1 for pid in pidxs if players_data[pid]['name'] in mc_key)
-            if match_counts[mc_key] + hit > mc_cap:
-                return False
+            if match_counts[mc_key] + hit > mc_cap: return False
         return True
 
-    def add_lineup(proj, sal, pidxs):
-        selected.append((proj, sal, pidxs))
-        selected_keys.add(pidxs)
-        for pid in pidxs:
-            player_counts[pid] += 1
+    def add_lu(proj, sal, pidxs):
+        selected.append((proj, sal, pidxs)); selected_keys.add(pidxs)
+        for pid in pidxs: player_counts[pid] += 1
         for mc_key in match_caps_dict:
             match_counts[mc_key] += sum(1 for pid in pidxs if players_data[pid]['name'] in mc_key)
 
-    # Phase 1a: Scarcity pre-allocation (mins sorted ascending)
+    # Phase 1a: Scarcity
     scarcity = sorted(min_caps.items(), key=lambda x: x[1])
     for name, _ in scarcity:
-        target_idx = idx_map[name]
-        while player_counts[target_idx] < min_caps[name] and len(selected) < n_lineups:
+        ti = idx_map[name]
+        while player_counts[ti] < min_caps[name] and len(selected) < n_lineups:
             placed = False
             for proj, sal, pidxs in all_lineups:
-                if pidxs in selected_keys: continue
-                if target_idx not in pidxs: continue
-                if not can_add(pidxs): continue
-                add_lineup(proj, sal, pidxs)
-                placed = True
-                break
-            if not placed:
-                break
+                if pidxs in selected_keys or ti not in pidxs: continue
+                if can_add(pidxs): add_lu(proj, sal, pidxs); placed = True; break
+            if not placed: break
 
-    # Phase 1b: Round-robin for remaining min targets
-    for iteration in range(500):
-        if len(selected) >= n_lineups:
-            break
-        deficits = [(n, min_caps[n] - player_counts[idx_map[n]])
-                     for n in min_caps if player_counts[idx_map[n]] < min_caps[n]]
-        if not deficits:
-            break
-        deficits.sort(key=lambda x: (-x[1], player_counts[idx_map[x[0]]]))
-        target_name = deficits[0][0]
-        target_idx = idx_map[target_name]
-        picked = False
-        for proj, sal, pidxs in all_lineups:
-            if pidxs in selected_keys: continue
-            if target_idx not in pidxs: continue
-            if not can_add(pidxs): continue
-            add_lineup(proj, sal, pidxs)
-            picked = True
-            break
-        if not picked:
-            min_caps[target_name] = player_counts[target_idx]
-
-    # Phase 2: Greedy fill
-    for proj, sal, pidxs in all_lineups:
-        if len(selected) >= n_lineups:
-            break
-        if pidxs in selected_keys:
-            continue
-        if not can_add(pidxs):
-            continue
-        add_lineup(proj, sal, pidxs)
-
-    # Post-pass swap
-    def min_still_met(remove_pidxs, add_pidxs, exclude):
-        for other, other_min in min_caps.items():
-            if other == exclude: continue
-            oid = idx_map[other]
-            change = (-1 if oid in remove_pidxs else 0) + (1 if oid in add_pidxs else 0)
-            new_count = player_counts[oid] + change
-            if player_counts[oid] >= other_min:
-                if new_count < other_min: return False
-            else:
-                if change < 0: return False
-        return True
-
-    def feasible_after_swap(remove_pidxs, add_pidxs):
-        new_counts = list(player_counts)
-        for pid in remove_pidxs: new_counts[pid] -= 1
-        for pid in add_pidxs: new_counts[pid] += 1
-        for pid in range(len(players_data)):
-            cap = max_caps.get(players_data[pid]['name'], default_cap)
-            if new_counts[pid] > cap: return False
-        new_mc = dict(match_counts)
-        for mc_key in match_caps_dict:
-            for pid in remove_pidxs:
-                if players_data[pid]['name'] in mc_key: new_mc[mc_key] -= 1
-            for pid in add_pidxs:
-                if players_data[pid]['name'] in mc_key: new_mc[mc_key] += 1
-            if new_mc[mc_key] > match_caps_dict[mc_key]: return False
-        return True
-
-    for iteration in range(200):
-        deficits = [(n, min_caps[n] - player_counts[idx_map[n]])
-                     for n in min_caps if player_counts[idx_map[n]] < min_caps[n]]
+    # Phase 1b: Round-robin
+    for _ in range(500):
+        if len(selected) >= n_lineups: break
+        deficits = [(n, min_caps[n] - player_counts[idx_map[n]]) for n in min_caps if player_counts[idx_map[n]] < min_caps[n]]
         if not deficits: break
-        deficits.sort(key=lambda x: -x[1])
-        name, deficit = deficits[0]
-        target_idx = idx_map[name]
-        did_swap = False
-        for c_proj, c_sal, c_pidxs in all_lineups:
-            if c_pidxs in selected_keys: continue
-            if target_idx not in c_pidxs: continue
+        deficits.sort(key=lambda x: (-x[1], player_counts[idx_map[x[0]]]))
+        tn = deficits[0][0]; ti = idx_map[tn]; picked = False
+        for proj, sal, pidxs in all_lineups:
+            if pidxs in selected_keys or ti not in pidxs: continue
+            if can_add(pidxs): add_lu(proj, sal, pidxs); picked = True; break
+        if not picked: min_caps[tn] = player_counts[ti]
+
+    # Phase 2: Greedy
+    for proj, sal, pidxs in all_lineups:
+        if len(selected) >= n_lineups: break
+        if pidxs in selected_keys or not can_add(pidxs): continue
+        add_lu(proj, sal, pidxs)
+
+    # Post-pass swaps
+    def min_ok(rm, ad, exc):
+        for o, om in min_caps.items():
+            if o == exc: continue
+            oid = idx_map[o]
+            ch = (-1 if oid in rm else 0) + (1 if oid in ad else 0)
+            nc = player_counts[oid] + ch
+            if player_counts[oid] >= om and nc < om: return False
+            if player_counts[oid] < om and ch < 0: return False
+        return True
+
+    def swap_ok(rm, ad):
+        nc = list(player_counts)
+        for pid in rm: nc[pid] -= 1
+        for pid in ad: nc[pid] += 1
+        for pid in range(len(players_data)):
+            if nc[pid] > max_caps.get(players_data[pid]['name'], default_cap): return False
+        nmc = dict(match_counts)
+        for mk in match_caps_dict:
+            for pid in rm:
+                if players_data[pid]['name'] in mk: nmc[mk] -= 1
+            for pid in ad:
+                if players_data[pid]['name'] in mk: nmc[mk] += 1
+            if nmc[mk] > match_caps_dict[mk]: return False
+        return True
+
+    for _ in range(200):
+        defs = [(n, min_caps[n] - player_counts[idx_map[n]]) for n in min_caps if player_counts[idx_map[n]] < min_caps[n]]
+        if not defs: break
+        defs.sort(key=lambda x: -x[1]); nm = defs[0][0]; ti = idx_map[nm]; done = False
+        for cp, cs, cpx in all_lineups:
+            if cpx in selected_keys or ti not in cpx: continue
             selected.sort(key=lambda x: x[0])
-            for i, (s_proj, s_sal, s_pidxs) in enumerate(selected):
-                if target_idx in s_pidxs: continue
-                if not min_still_met(s_pidxs, c_pidxs, name): continue
-                if not feasible_after_swap(s_pidxs, c_pidxs): continue
-                selected_keys.discard(s_pidxs)
-                for pid in s_pidxs: player_counts[pid] -= 1
-                for mc_key in match_caps_dict:
-                    match_counts[mc_key] -= sum(1 for pid in s_pidxs if players_data[pid]['name'] in mc_key)
-                selected[i] = (c_proj, c_sal, c_pidxs)
-                selected_keys.add(c_pidxs)
-                for pid in c_pidxs: player_counts[pid] += 1
-                for mc_key in match_caps_dict:
-                    match_counts[mc_key] += sum(1 for pid in c_pidxs if players_data[pid]['name'] in mc_key)
-                did_swap = True
-                break
-            if did_swap: break
-        if not did_swap:
-            min_caps[name] = player_counts[idx_map[name]]
+            for i, (sp, ss, spx) in enumerate(selected):
+                if ti in spx: continue
+                if not min_ok(spx, cpx, nm) or not swap_ok(spx, cpx): continue
+                selected_keys.discard(spx)
+                for pid in spx: player_counts[pid] -= 1
+                for mk in match_caps_dict:
+                    match_counts[mk] -= sum(1 for pid in spx if players_data[pid]['name'] in mk)
+                selected[i] = (cp, cs, cpx); selected_keys.add(cpx)
+                for pid in cpx: player_counts[pid] += 1
+                for mk in match_caps_dict:
+                    match_counts[mk] += sum(1 for pid in cpx if players_data[pid]['name'] in mk)
+                done = True; break
+            if done: break
+        if not done: min_caps[nm] = player_counts[idx_map[nm]]
 
     selected.sort(key=lambda x: -x[0])
     return selected, player_counts, all_lineups
 
 # ============================================================
-# SESSION STATE INIT
+# SESSION STATE
 # ============================================================
-if 'players' not in st.session_state:
-    st.session_state.players = []
-if 'matches' not in st.session_state:
-    st.session_state.matches = []
-if 'odds_data' not in st.session_state:
-    st.session_state.odds_data = {}
-if 'projections' not in st.session_state:
-    st.session_state.projections = {}
-if 'exposure_settings' not in st.session_state:
-    st.session_state.exposure_settings = {}
+for key in ['players', 'matches', 'odds_data', 'projections', 'exposure_settings']:
+    if key not in st.session_state:
+        st.session_state[key] = [] if key in ['players', 'matches'] else {}
 
 # ============================================================
 # SIDEBAR
 # ============================================================
 with st.sidebar:
-    st.markdown("# 🎾 DK Tennis")
-    st.markdown("### Optimizer")
+    if LOGO_B64:
+        st.markdown(f'<div class="sidebar-logo"><img src="data:image/png;base64,{LOGO_B64}"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-brand">Tennis Optimizer</div>', unsafe_allow_html=True)
+    else:
+        st.markdown("# ⛰️ AltaPicks")
+        st.caption("Tennis Optimizer")
+
     st.markdown("---")
-
-    uploaded_file = st.file_uploader("Upload DK Salary CSV", type=['csv'])
-
+    uploaded_file = st.file_uploader("DraftKings Salary CSV", type=['csv'], label_visibility="collapsed")
     if uploaded_file:
         players = parse_dk_csv(uploaded_file)
         if players:
             st.session_state.players = players
             st.session_state.matches = detect_matches(players)
-            st.success(f"Loaded {len(players)} players, {len(st.session_state.matches)} matches")
-        else:
-            st.error("Could not parse CSV. Check format.")
+            st.success(f"{len(players)} players · {len(st.session_state.matches)} matches")
 
     st.markdown("---")
-    st.markdown("**Lineup Settings**")
-    n_lineups = st.number_input("Number of lineups", min_value=1, max_value=150, value=45)
-    salary_cap = st.number_input("Salary cap", min_value=10000, max_value=100000, value=50000, step=1000)
-    lineup_size = st.number_input("Roster size", min_value=2, max_value=8, value=6)
+    st.markdown(f'<div style="color:{TEXT_MUTED};font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Build Settings</div>', unsafe_allow_html=True)
+    n_lineups = st.number_input("Lineups", min_value=1, max_value=150, value=45)
+    salary_cap = st.number_input("Salary Cap", min_value=10000, max_value=100000, value=50000, step=1000)
+    lineup_size = st.number_input("Roster Size", min_value=2, max_value=8, value=6)
 
     st.markdown("---")
-    st.markdown("##### DK Scoring (Best of 3)")
-    st.caption("Match Played +30 | Game Won +2.5 | Game Lost -2 | Set Won +6 | Set Lost -3 | Match Won +6 | Ace +0.4 | DF -1 | Break +0.75 | Straight Sets +6 | Clean Set +4 | No DF +2.5 | 10+ Aces +2")
+    st.markdown(f"""<div style="background:{NAVY};padding:10px 12px;border-radius:8px;font-size:11px;color:{TEXT_MUTED};line-height:1.6;">
+    <span style="color:white;font-weight:600;">DK Scoring</span><br>
+    Match +30 · Win +6 · Set W/L +6/-3<br>
+    Game W/L +2.5/-2 · Ace +0.4 · DF -1<br>
+    Break +0.75 · Straights +6<br>
+    Clean Set +4 · No DF +2.5 · 10+ Aces +2
+    </div>""", unsafe_allow_html=True)
 
 # ============================================================
-# MAIN TABS
+# MAIN
 # ============================================================
 if not st.session_state.players:
-    st.markdown("# 🎾 DK Tennis DFS Optimizer")
-    st.markdown("### Upload your DraftKings salary CSV to get started")
-    st.markdown("""
-    **Workflow:**
-    1. **Upload** your DK salary CSV in the sidebar
-    2. **Input odds** from bet365 / sportsbooks for each match
-    3. **Review projections** and adjust with your match reads
-    4. **Set exposure caps** and generate optimized lineups
-    5. **Download** the DK-ready upload CSV
-    """)
+    st.markdown(f"""
+    <div style="text-align:center;padding:80px 20px;">
+        {'<img src="data:image/png;base64,' + LOGO_B64 + '" width="180" style="margin-bottom:24px;opacity:0.8;">' if LOGO_B64 else ''}
+        <h1 style="color:{TEXT};font-size:32px;margin-bottom:8px;">AltaPicks Tennis Optimizer</h1>
+        <p style="color:{TEXT_MUTED};font-size:16px;max-width:500px;margin:0 auto 32px;">
+            Upload your DraftKings salary CSV to start building lineups.
+        </p>
+        <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;max-width:700px;margin:0 auto;">
+            <div class="ap-card" style="flex:1;min-width:140px;text-align:center;">
+                <div style="font-size:24px;margin-bottom:4px;">📊</div>
+                <div style="color:{TEXT};font-weight:600;font-size:13px;">Input Odds</div>
+                <div style="color:{TEXT_DIM};font-size:11px;margin-top:2px;">Bet365, DK Sportsbook</div>
+            </div>
+            <div class="ap-card" style="flex:1;min-width:140px;text-align:center;">
+                <div style="font-size:24px;margin-bottom:4px;">⚡</div>
+                <div style="color:{TEXT};font-weight:600;font-size:13px;">Projections</div>
+                <div style="color:{TEXT_DIM};font-size:11px;margin-top:2px;">Full DK scoring model</div>
+            </div>
+            <div class="ap-card" style="flex:1;min-width:140px;text-align:center;">
+                <div style="font-size:24px;margin-bottom:4px;">🎯</div>
+                <div style="color:{TEXT};font-weight:600;font-size:13px;">Optimize</div>
+                <div style="color:{TEXT_DIM};font-size:11px;margin-top:2px;">Exposure-capped lineups</div>
+            </div>
+            <div class="ap-card" style="flex:1;min-width:140px;text-align:center;">
+                <div style="font-size:24px;margin-bottom:4px;">📥</div>
+                <div style="color:{TEXT};font-weight:600;font-size:13px;">Export</div>
+                <div style="color:{TEXT_DIM};font-size:11px;margin-top:2px;">DK-ready upload CSV</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     st.stop()
 
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Odds Input", "📈 Projections", "⚙️ Lineup Builder", "📥 Export"])
+tab1, tab2, tab3, tab4 = st.tabs(["  Odds Input  ", "  Projections  ", "  Lineup Builder  ", "  Export  "])
 
 # ============================================================
 # TAB 1: ODDS INPUT
 # ============================================================
 with tab1:
-    st.markdown("## Match Odds Input")
-    st.caption("Enter sportsbook odds for each match. American odds format (e.g. -150, +275).")
+    st.markdown('<div class="section-header">Match Odds</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Enter sportsbook odds for each match · American format (-150, +275)</div>', unsafe_allow_html=True)
 
     for mi, match in enumerate(st.session_state.matches):
-        pa_name = match['player_a']
-        pb_name = match['player_b']
+        pa_name, pb_name = match['player_a'], match['player_b']
         match_key = f"{pa_name}_vs_{pb_name}"
-
         if match_key not in st.session_state.odds_data:
             st.session_state.odds_data[match_key] = {}
 
-        with st.expander(f"🎾 {pa_name} vs {pb_name}", expanded=(mi < 3)):
-            col_a, col_b = st.columns(2)
+        with st.expander(f"🎾  {pa_name}  vs  {pb_name}", expanded=(mi < 2)):
+            # Money Line
+            c1, c2, c3, c4 = st.columns([2,1,2,1])
+            with c1: st.markdown(f"**{pa_name}**")
+            with c2: ml_a = st.number_input("ML", key=f"ml_a_{mi}", value=-200, step=5, label_visibility="collapsed")
+            with c3: st.markdown(f"**{pb_name}**")
+            with c4: ml_b = st.number_input("ML", key=f"ml_b_{mi}", value=160, step=5, label_visibility="collapsed")
 
-            with col_a:
-                st.markdown(f"**{pa_name}**")
-                ml_a = st.number_input(f"Money Line", key=f"ml_a_{mi}", value=-200, step=5)
-            with col_b:
-                st.markdown(f"**{pb_name}**")
-                ml_b = st.number_input(f"Money Line", key=f"ml_b_{mi}", value=160, step=5)
-
-            # Derive win probabilities
-            raw_a = american_to_prob(ml_a)
-            raw_b = american_to_prob(ml_b)
+            raw_a, raw_b = american_to_prob(ml_a), american_to_prob(ml_b)
             wp_a, wp_b = remove_vig_pair(raw_a, raw_b)
 
-            st.caption(f"Implied win %: {pa_name} **{wp_a:.1%}** | {pb_name} **{wp_b:.1%}**")
+            st.markdown(f"""<div class="match-bar">
+                <span>{pa_name}</span>
+                <span class="win-pct">{wp_a:.0%} – {wp_b:.0%}</span>
+                <span>{pb_name}</span>
+            </div>""", unsafe_allow_html=True)
 
-            st.markdown("---")
-            st.markdown("**Set Betting**")
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                sb_a_20 = st.number_input(f"{pa_name} 2-0", key=f"sb_a20_{mi}", value=-120, step=5)
-            with col2:
-                sb_a_21 = st.number_input(f"{pa_name} 2-1", key=f"sb_a21_{mi}", value=240, step=5)
-            with col3:
-                sb_b_20 = st.number_input(f"{pb_name} 2-0", key=f"sb_b20_{mi}", value=600, step=5)
-            with col4:
-                sb_b_21 = st.number_input(f"{pb_name} 2-1", key=f"sb_b21_{mi}", value=550, step=5)
+            # Set Betting + Total Games
+            st.markdown(f'<div style="color:{TEXT_MUTED};font-size:12px;font-weight:600;margin:8px 0 4px;">SET BETTING</div>', unsafe_allow_html=True)
+            c1, c2, c3, c4 = st.columns(4)
+            with c1: sb_a_20 = st.number_input(f"{pa_name} 2-0", key=f"sb_a20_{mi}", value=-120, step=5)
+            with c2: sb_a_21 = st.number_input(f"{pa_name} 2-1", key=f"sb_a21_{mi}", value=240, step=5)
+            with c3: sb_b_20 = st.number_input(f"{pb_name} 2-0", key=f"sb_b20_{mi}", value=600, step=5)
+            with c4: sb_b_21 = st.number_input(f"{pb_name} 2-1", key=f"sb_b21_{mi}", value=550, step=5)
 
-            # Normalize set betting
-            raw_probs = [american_to_prob(x) for x in [sb_a_20, sb_a_21, sb_b_20, sb_b_21]]
-            total_raw = sum(raw_probs)
-            if total_raw > 0:
-                p_a20, p_a21, p_b20, p_b21 = [p / total_raw for p in raw_probs]
-            else:
-                p_a20, p_a21, p_b20, p_b21 = 0.4, 0.2, 0.1, 0.1
+            rp = [american_to_prob(x) for x in [sb_a_20, sb_a_21, sb_b_20, sb_b_21]]
+            tr = sum(rp)
+            p_a20, p_a21, p_b20, p_b21 = [p/tr for p in rp] if tr > 0 else [.4,.2,.1,.1]
 
-            st.caption(f"Set probs: {pa_name} 2-0 **{p_a20:.1%}** | 2-1 **{p_a21:.1%}** | {pb_name} 2-0 **{p_b20:.1%}** | 2-1 **{p_b21:.1%}**")
+            # Games Won
+            st.markdown(f'<div style="color:{TEXT_MUTED};font-size:12px;font-weight:600;margin:8px 0 4px;">PLAYER GAMES WON</div>', unsafe_allow_html=True)
+            c1, c2, c3, c4 = st.columns(4)
+            with c1: gw_a_line = st.number_input(f"{pa_name} line", key=f"gw_a_{mi}", value=12.5, step=0.5)
+            with c2: gw_a_over = st.number_input(f"Over odds", key=f"gw_ao_{mi}", value=-150, step=5)
+            with c3: gw_b_line = st.number_input(f"{pb_name} line", key=f"gw_b_{mi}", value=10.5, step=0.5)
+            with c4: gw_b_over = st.number_input(f"Over odds", key=f"gw_bo_{mi}", value=-120, step=5)
 
-            st.markdown("---")
-            st.markdown("**Player Games Won**")
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                gw_a_line = st.number_input(f"{pa_name} line", key=f"gw_a_{mi}", value=12.5, step=0.5)
-            with col2:
-                gw_a_over = st.number_input(f"Over odds", key=f"gw_ao_{mi}", value=-150, step=5)
-            with col3:
-                gw_b_line = st.number_input(f"{pb_name} line", key=f"gw_b_{mi}", value=10.5, step=0.5)
-            with col4:
-                gw_b_over = st.number_input(f"Over odds", key=f"gw_bo_{mi}", value=-120, step=5)
+            gw_a = gw_a_line + (0.5 if american_to_prob(gw_a_over) > 0.55 else -0.3 if american_to_prob(gw_a_over) < 0.45 else 0)
+            gw_b = gw_b_line + (0.5 if american_to_prob(gw_b_over) > 0.55 else -0.3 if american_to_prob(gw_b_over) < 0.45 else 0)
 
-            # Adjust games won by over/under lean
-            gw_a_adj = gw_a_line + (0.5 if american_to_prob(gw_a_over) > 0.55 else -0.3 if american_to_prob(gw_a_over) < 0.45 else 0)
-            gw_b_adj = gw_b_line + (0.5 if american_to_prob(gw_b_over) > 0.55 else -0.3 if american_to_prob(gw_b_over) < 0.45 else 0)
+            # Breaks
+            st.markdown(f'<div style="color:{TEXT_MUTED};font-size:12px;font-weight:600;margin:8px 0 4px;">BREAKS OF SERVE</div>', unsafe_allow_html=True)
+            c1, c2, c3, c4 = st.columns(4)
+            with c1: brk_a_line = st.number_input(f"{pa_name} line", key=f"brk_a_{mi}", value=2.5, step=0.5)
+            with c2: brk_a_over = st.number_input(f"Over", key=f"brk_ao_{mi}", value=-200, step=5)
+            with c3: brk_b_line = st.number_input(f"{pb_name} line", key=f"brk_b_{mi}", value=1.5, step=0.5)
+            with c4: brk_b_over = st.number_input(f"Over", key=f"brk_bo_{mi}", value=-120, step=5)
 
-            st.markdown("---")
-            st.markdown("**Breaks of Serve**")
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                brk_a_line = st.number_input(f"{pa_name} line", key=f"brk_a_{mi}", value=2.5, step=0.5)
-            with col2:
-                brk_a_over = st.number_input(f"Over odds", key=f"brk_ao_{mi}", value=-200, step=5)
-            with col3:
-                brk_b_line = st.number_input(f"{pb_name} line", key=f"brk_b_{mi}", value=1.5, step=0.5)
-            with col4:
-                brk_b_over = st.number_input(f"Over odds", key=f"brk_bo_{mi}", value=-120, step=5)
+            brk_a = brk_a_line + (0.5 if american_to_prob(brk_a_over) > 0.6 else 0)
+            brk_b = brk_b_line + (0.2 if american_to_prob(brk_b_over) > 0.55 else 0)
 
-            brk_a_adj = brk_a_line + (0.5 if american_to_prob(brk_a_over) > 0.6 else 0)
-            brk_b_adj = brk_b_line + (0.2 if american_to_prob(brk_b_over) > 0.55 else 0)
+            # Aces & DFs
+            st.markdown(f'<div style="color:{TEXT_MUTED};font-size:12px;font-weight:600;margin:8px 0 4px;">ACES & DOUBLE FAULTS</div>', unsafe_allow_html=True)
+            c1, c2, c3, c4 = st.columns(4)
+            with c1: ace_a5 = st.number_input(f"{pa_name} 5+ Aces", key=f"ace_a5_{mi}", value=-200, step=5)
+            with c2: ace_a10 = st.number_input(f"{pa_name} 10+ Aces", key=f"ace_a10_{mi}", value=400, step=5)
+            with c3: ace_b5 = st.number_input(f"{pb_name} 5+ Aces", key=f"ace_b5_{mi}", value=-225, step=5)
+            with c4: ace_b10 = st.number_input(f"{pb_name} 10+ Aces", key=f"ace_b10_{mi}", value=333, step=5)
 
-            st.markdown("---")
-            st.markdown("**Aces & Double Faults**")
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                ace_a_5plus = st.number_input(f"{pa_name} 5+ Aces", key=f"ace_a5_{mi}", value=-200, step=5,
-                                               help="Odds for 5+ aces")
-            with col2:
-                ace_a_10plus = st.number_input(f"{pa_name} 10+ Aces", key=f"ace_a10_{mi}", value=400, step=5)
-            with col3:
-                ace_b_5plus = st.number_input(f"{pb_name} 5+ Aces", key=f"ace_b5_{mi}", value=-225, step=5)
-            with col4:
-                ace_b_10plus = st.number_input(f"{pb_name} 10+ Aces", key=f"ace_b10_{mi}", value=333, step=5)
+            c1, c2, c3, c4 = st.columns(4)
+            with c1: df_a2 = st.number_input(f"{pa_name} 2+ DFs", key=f"df_a2_{mi}", value=-275, step=5)
+            with c2: df_a3 = st.number_input(f"{pa_name} 3+ DFs", key=f"df_a3_{mi}", value=100, step=5)
+            with c3: df_b2 = st.number_input(f"{pb_name} 2+ DFs", key=f"df_b2_{mi}", value=100, step=5)
+            with c4: df_b3 = st.number_input(f"{pb_name} 3+ DFs", key=f"df_b3_{mi}", value=300, step=5)
 
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                df_a_2plus = st.number_input(f"{pa_name} 2+ DFs", key=f"df_a2_{mi}", value=-275, step=5)
-            with col2:
-                df_a_3plus = st.number_input(f"{pa_name} 3+ DFs", key=f"df_a3_{mi}", value=100, step=5)
-            with col3:
-                df_b_2plus = st.number_input(f"{pb_name} 2+ DFs", key=f"df_b2_{mi}", value=100, step=5)
-            with col4:
-                df_b_3plus = st.number_input(f"{pb_name} 3+ DFs", key=f"df_b3_{mi}", value=300, step=5)
+            ace_a_ev = poisson_ev_from_milestone(ace_a5, 5)
+            ace_b_ev = poisson_ev_from_milestone(ace_b5, 5)
+            df_a_ev = poisson_ev_from_milestone(df_a3, 3)
+            df_b_ev = poisson_ev_from_milestone(df_b3, 3)
+            p_nodf_a = max(0, 1 - american_to_prob(df_a2)) if american_to_prob(df_a2) < 0.95 else math.exp(-df_a_ev)
+            p_nodf_b = max(0, 1 - american_to_prob(df_b2)) if american_to_prob(df_b2) < 0.95 else math.exp(-df_b_ev)
 
-            ace_a_ev = poisson_ev_from_milestone(ace_a_5plus, 5)
-            ace_b_ev = poisson_ev_from_milestone(ace_b_5plus, 5)
-            df_a_ev = poisson_ev_from_milestone(df_a_3plus, 3)
-            df_b_ev = poisson_ev_from_milestone(df_b_3plus, 3)
+            # Adjustment
+            st.markdown(f'<div style="color:{TEXT_MUTED};font-size:12px;font-weight:600;margin:8px 0 4px;">YOUR READ (±)</div>', unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            with c1: adj_a = st.number_input(f"{pa_name}", key=f"adj_a_{mi}", value=0.0, step=0.5, label_visibility="collapsed")
+            with c2: adj_b = st.number_input(f"{pb_name}", key=f"adj_b_{mi}", value=0.0, step=0.5, label_visibility="collapsed")
 
-            p_10ace_a = american_to_prob(ace_a_10plus)
-            p_10ace_b = american_to_prob(ace_b_10plus)
-            p_no_df_a = 1 - american_to_prob(df_a_2plus) if american_to_prob(df_a_2plus) < 0.95 else math.exp(-df_a_ev)
-            p_no_df_b = 1 - american_to_prob(df_b_2plus) if american_to_prob(df_b_2plus) < 0.95 else math.exp(-df_b_ev)
-
-            st.caption(f"Estimated E[Aces]: {pa_name} **{ace_a_ev:.1f}** | {pb_name} **{ace_b_ev:.1f}** | "
-                       f"E[DFs]: {pa_name} **{df_a_ev:.1f}** | {pb_name} **{df_b_ev:.1f}**")
-
-            st.markdown("---")
-            st.markdown("**Your Match Read (projection adjustment)**")
-            col1, col2 = st.columns(2)
-            with col1:
-                adj_a = st.number_input(f"{pa_name} +/- pts", key=f"adj_a_{mi}", value=0.0, step=0.5,
-                                         help="e.g. +3 if you think they win in straights, -3 if 3-set match")
-            with col2:
-                adj_b = st.number_input(f"{pb_name} +/- pts", key=f"adj_b_{mi}", value=0.0, step=0.5)
-
-            # Store all odds
             st.session_state.odds_data[match_key] = {
                 'player_a': {
                     'name': pa_name, 'win_prob': wp_a,
                     'p_straight_win': p_a20, 'p_straight_loss': p_b20,
-                    'games_won': gw_a_adj, 'games_lost': gw_b_adj,
-                    'aces': ace_a_ev, 'dfs': df_a_ev,
-                    'breaks': brk_a_adj,
-                    'p_10plus_aces': p_10ace_a, 'p_no_df': p_no_df_a,
+                    'games_won': gw_a, 'games_lost': gw_b,
+                    'aces': ace_a_ev, 'dfs': df_a_ev, 'breaks': brk_a,
+                    'p_10plus_aces': american_to_prob(ace_a10), 'p_no_df': p_nodf_a,
                     'adjustment': adj_a,
                 },
                 'player_b': {
                     'name': pb_name, 'win_prob': wp_b,
                     'p_straight_win': p_b20, 'p_straight_loss': p_a20,
-                    'games_won': gw_b_adj, 'games_lost': gw_a_adj,
-                    'aces': ace_b_ev, 'dfs': df_b_ev,
-                    'breaks': brk_b_adj,
-                    'p_10plus_aces': p_10ace_b, 'p_no_df': p_no_df_b,
+                    'games_won': gw_b, 'games_lost': gw_a,
+                    'aces': ace_b_ev, 'dfs': df_b_ev, 'breaks': brk_b,
+                    'p_10plus_aces': american_to_prob(ace_b10), 'p_no_df': p_nodf_b,
                     'adjustment': adj_b,
                 },
             }
@@ -646,284 +723,176 @@ with tab1:
 # TAB 2: PROJECTIONS
 # ============================================================
 with tab2:
-    st.markdown("## Projections")
+    st.markdown('<div class="section-header">Player Projections</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Sorted by value (pts/$1K) · All DK bonuses included</div>', unsafe_allow_html=True)
 
     if not st.session_state.odds_data:
         st.info("Enter odds in the Odds Input tab first.")
         st.stop()
 
-    # Build projections
     proj_rows = []
-    for match_key, odds in st.session_state.odds_data.items():
-        if 'player_a' not in odds:
-            continue
+    for mk, odds in st.session_state.odds_data.items():
+        if 'player_a' not in odds: continue
         for side in ['player_a', 'player_b']:
-            o = odds[side]
-            name = o['name']
+            o = odds[side]; name = o['name']
             proj = build_projection(o)
-
-            # Find salary
-            salary = 0
-            for p in st.session_state.players:
-                if p['name'] == name:
-                    salary = p['salary']
-                    break
-
-            value = proj['score'] / (salary / 1000) if salary > 0 else 0
-
+            sal = next((p['salary'] for p in st.session_state.players if p['name'] == name), 0)
+            val = proj['score'] / (sal / 1000) if sal > 0 else 0
             proj_rows.append({
-                'Player': name,
-                'Salary': salary,
-                'Win%': f"{proj['wp']:.0%}",
-                'Proj': proj['score'],
-                'Value': round(value, 3),
-                'GW': proj['games_won'],
-                'GL': proj['games_lost'],
-                'SW': proj['sets_won'],
-                'SL': proj['sets_lost'],
-                'Aces': proj['aces'],
-                'DFs': proj['dfs'],
-                'Brks': proj['breaks'],
-                'P(2-0)': f"{proj['p_straight']:.0%}",
-                'P(NoDf)': f"{proj['p_no_df']:.1%}",
-                'P(10A)': f"{proj['p_10plus_aces']:.0%}",
+                'Player': name, 'Salary': f"${sal:,}", 'Win%': f"{proj['wp']:.0%}",
+                'Proj': proj['score'], 'Value': round(val, 2),
+                'GW': proj['games_won'], 'GL': proj['games_lost'],
+                'SW': round(proj['sets_won'], 1), 'SL': round(proj['sets_lost'], 1),
+                'Aces': round(proj['aces'], 1), 'DFs': round(proj['dfs'], 1),
+                'Brks': round(proj['breaks'], 1), 'P(2-0)': f"{proj['p_straight']:.0%}",
             })
-
-            st.session_state.projections[name] = {
-                'projection': proj['score'],
-                'value': round(value, 3),
-                **proj,
-            }
+            st.session_state.projections[name] = {'projection': proj['score'], 'value': round(val, 3), **proj}
 
     if proj_rows:
-        df = pd.DataFrame(proj_rows)
-        df = df.sort_values('Value', ascending=False).reset_index(drop=True)
-        df.index += 1
-        df.index.name = 'Rank'
+        df = pd.DataFrame(proj_rows).sort_values('Value', ascending=False).reset_index(drop=True)
+        df.index += 1; df.index.name = '#'
 
-        st.dataframe(
-            df,
-            use_container_width=True,
-            height=min(700, 35 * len(df) + 38),
-        )
+        c1, c2, c3, c4 = st.columns(4)
+        top = df.iloc[0]
+        c1.metric("Top Value", top['Player'], f"{top['Value']} pts/$1K")
+        best_proj = df.sort_values('Proj', ascending=False).iloc[0]
+        c2.metric("Highest Proj", best_proj['Player'], f"{best_proj['Proj']} pts")
+        c3.metric("Players", len(df))
+        c4.metric("Matches", len(st.session_state.matches))
 
-        st.markdown("---")
-        st.markdown("### Quick Stats")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            top_player = df.iloc[0]
-            st.metric("Top Value", f"{top_player['Player']}", f"{top_player['Value']} pts/$1K")
-        with col2:
-            top_proj = df.sort_values('Proj', ascending=False).iloc[0]
-            st.metric("Highest Projection", f"{top_proj['Player']}", f"{top_proj['Proj']} pts")
-        with col3:
-            st.metric("Players Projected", len(df))
+        st.markdown("")
+        st.dataframe(df, use_container_width=True, height=min(800, 35*len(df)+38))
 
 # ============================================================
 # TAB 3: LINEUP BUILDER
 # ============================================================
 with tab3:
-    st.markdown("## Lineup Builder")
+    st.markdown('<div class="section-header">Lineup Builder</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Set exposure constraints and generate optimized lineups</div>', unsafe_allow_html=True)
 
     if not st.session_state.projections:
-        st.info("Build projections first in the Projections tab.")
+        st.info("Build projections first.")
         st.stop()
 
-    st.markdown("### Exposure Settings")
-    st.caption("Set min/max exposure %. Leave blank for defaults (max 60%, min 0%).")
-
-    # Build exposure settings table
-    player_data_for_opt = []
     player_sal_map = {p['name']: p for p in st.session_state.players}
-
-    # Find opponents
     opp_map = {}
-    for match in st.session_state.matches:
-        opp_map[match['player_a']] = match['player_b']
-        opp_map[match['player_b']] = match['player_a']
+    for m in st.session_state.matches:
+        opp_map[m['player_a']] = m['player_b']
+        opp_map[m['player_b']] = m['player_a']
 
-    # Sort players by value
-    sorted_players = sorted(
-        [(name, data) for name, data in st.session_state.projections.items()],
-        key=lambda x: -x[1]['value']
-    )
+    sorted_p = sorted(st.session_state.projections.items(), key=lambda x: -x[1]['value'])
+    player_data_for_opt = []
 
-    cols_header = st.columns([3, 1, 1, 1, 1, 1])
-    cols_header[0].markdown("**Player**")
-    cols_header[1].markdown("**Salary**")
-    cols_header[2].markdown("**Proj**")
-    cols_header[3].markdown("**Value**")
-    cols_header[4].markdown("**Min %**")
-    cols_header[5].markdown("**Max %**")
+    st.markdown(f'<div style="color:{TEXT_MUTED};font-size:12px;font-weight:600;letter-spacing:1px;margin-bottom:8px;">PLAYER EXPOSURE</div>', unsafe_allow_html=True)
 
-    for pi, (name, proj_data) in enumerate(sorted_players):
+    for pi, (name, pd) in enumerate(sorted_p):
         p_info = player_sal_map.get(name, {})
-        salary = p_info.get('salary', 0)
-        dk_id = p_info.get('id', 0)
-
         cols = st.columns([3, 1, 1, 1, 1, 1])
-        cols[0].markdown(f"{name}")
-        cols[1].markdown(f"${salary:,}")
-        cols[2].markdown(f"{proj_data['score']:.1f}")
-        cols[3].markdown(f"{proj_data['value']:.2f}")
-
-        min_exp = cols[4].number_input("min", key=f"min_{pi}", value=0, min_value=0, max_value=100,
-                                        step=5, label_visibility="collapsed")
-        max_exp = cols[5].number_input("max", key=f"max_{pi}", value=60, min_value=0, max_value=100,
-                                        step=5, label_visibility="collapsed")
+        cols[0].markdown(f"<span style='font-size:13px;font-weight:500;'>{name}</span> <span style='color:{TEXT_DIM};font-size:11px;'>vs {opp_map.get(name,'')}</span>", unsafe_allow_html=True)
+        cols[1].caption(f"${p_info.get('salary',0):,}")
+        cols[2].caption(f"{pd['score']:.1f}")
+        cols[3].caption(f"{pd['value']:.2f}")
+        min_e = cols[4].number_input("min", key=f"min_{pi}", value=0, min_value=0, max_value=100, step=5, label_visibility="collapsed")
+        max_e = cols[5].number_input("max", key=f"max_{pi}", value=60, min_value=0, max_value=100, step=5, label_visibility="collapsed")
 
         player_data_for_opt.append({
-            'name': name,
-            'salary': salary,
-            'id': dk_id,
-            'projection': proj_data['score'],
-            'value': proj_data['value'],
-            'opponent': opp_map.get(name, ''),
-            'min_exposure': min_exp,
-            'max_exposure': max_exp,
+            'name': name, 'salary': p_info.get('salary',0), 'id': p_info.get('id',0),
+            'projection': pd['score'], 'value': pd['value'],
+            'opponent': opp_map.get(name,''), 'min_exposure': min_e, 'max_exposure': max_e,
         })
 
     st.markdown("---")
-    st.markdown("### Match-Level Caps")
-    st.caption("Set maximum total exposure across both players in a match.")
-
-    for mi, match in enumerate(st.session_state.matches):
-        col1, col2 = st.columns([3, 1])
-        col1.markdown(f"{match['player_a']} vs {match['player_b']}")
-        mc = col2.number_input("Max %", key=f"match_cap_{mi}", value=60, min_value=0, max_value=100,
-                                step=5, label_visibility="collapsed")
-        # Store on both players
+    st.markdown(f'<div style="color:{TEXT_MUTED};font-size:12px;font-weight:600;letter-spacing:1px;margin-bottom:8px;">MATCH CAPS</div>', unsafe_allow_html=True)
+    for mi, m in enumerate(st.session_state.matches):
+        c1, c2 = st.columns([4, 1])
+        c1.caption(f"{m['player_a']} vs {m['player_b']}")
+        mc = c2.number_input("max", key=f"mc_{mi}", value=60, min_value=0, max_value=100, step=5, label_visibility="collapsed")
         for pd in player_data_for_opt:
-            if pd['name'] in [match['player_a'], match['player_b']]:
+            if pd['name'] in [m['player_a'], m['player_b']]:
                 pd['match_max_exposure'] = mc
 
     st.markdown("---")
-
-    if st.button("🚀 Generate Lineups", type="primary", use_container_width=True):
+    if st.button("⚡ Build Lineups", type="primary", use_container_width=True):
         with st.spinner(f"Optimizing {n_lineups} lineups..."):
-            selected, player_counts, all_lineups = run_optimizer(
-                player_data_for_opt,
-                n_lineups=n_lineups,
-                salary_cap=salary_cap,
-                lineup_size=lineup_size,
-            )
+            sel, pcounts, all_lu = run_optimizer(player_data_for_opt, n_lineups, salary_cap, lineup_size)
+        st.session_state.sel = sel
+        st.session_state.pcounts = pcounts
+        st.session_state.opt_data = player_data_for_opt
+        st.session_state.total_valid = len(all_lu)
+        st.success(f"Built {len(sel)} lineups from {len(all_lu):,} valid combinations")
 
-        st.session_state.selected_lineups = selected
-        st.session_state.player_counts = player_counts
-        st.session_state.player_data_for_opt = player_data_for_opt
-        st.session_state.total_valid = len(all_lineups)
+    if 'sel' in st.session_state:
+        sel = st.session_state.sel; pcounts = st.session_state.pcounts; pd_opt = st.session_state.opt_data
 
-        st.success(f"Generated {len(selected)} lineups from {len(all_lineups):,} valid combinations!")
+        st.markdown(f'<div style="color:{TEXT_MUTED};font-size:12px;font-weight:600;letter-spacing:1px;margin:16px 0 8px;">EXPOSURE REPORT</div>', unsafe_allow_html=True)
+        exp_data = []
+        for i, p in enumerate(pd_opt):
+            exp_data.append({'Player': p['name'], 'Salary': f"${p['salary']:,}", 'Proj': p['projection'],
+                             'Value': p['value'], 'Count': pcounts[i],
+                             'Exposure': f"{pcounts[i]/len(sel)*100:.1f}%"})
+        st.dataframe(pd.DataFrame(exp_data).sort_values('Value', ascending=False).reset_index(drop=True),
+                     use_container_width=True, height=min(600, 35*len(exp_data)+38))
 
-    # Display results
-    if 'selected_lineups' in st.session_state:
-        selected = st.session_state.selected_lineups
-        player_counts = st.session_state.player_counts
-        player_data = st.session_state.player_data_for_opt
-
-        st.markdown("### Exposure Report")
-        exp_rows = []
-        for i, pd in enumerate(player_data):
-            cnt = player_counts[i]
-            exp_rows.append({
-                'Player': pd['name'],
-                'Salary': pd['salary'],
-                'Proj': pd['projection'],
-                'Value': pd['value'],
-                'Count': cnt,
-                'Exposure': f"{cnt / len(selected) * 100:.1f}%",
-            })
-        exp_df = pd.DataFrame(exp_rows).sort_values('Value', ascending=False).reset_index(drop=True)
-        st.dataframe(exp_df, use_container_width=True, height=min(700, 35 * len(exp_df) + 38))
-
-        st.markdown("### Lineup Preview")
-        for rank, (proj, sal, pidxs) in enumerate(selected[:10], 1):
-            names = [player_data[i]['name'] for i in pidxs]
-            sals = [player_data[i]['salary'] for i in pidxs]
-            sorted_names = [n for _, n in sorted(zip(sals, names), reverse=True)]
-            st.caption(f"#{rank} | Proj: {proj:.2f} | Sal: ${sal:,} | {' / '.join(sorted_names)}")
-
-        if len(selected) > 10:
-            st.caption(f"... and {len(selected) - 10} more lineups")
+        # Lineup cards
+        st.markdown(f'<div style="color:{TEXT_MUTED};font-size:12px;font-weight:600;letter-spacing:1px;margin:16px 0 8px;">LINEUPS</div>', unsafe_allow_html=True)
+        for rank, (proj, sal, pidxs) in enumerate(sel[:20], 1):
+            players_in = sorted([(pd_opt[i]['name'], pd_opt[i]['salary'], pd_opt[i]['projection'], pd_opt[i]['opponent']) for i in pidxs], key=lambda x: -x[1])
+            rows_html = ""
+            for nm, s, pr, op in players_in:
+                rows_html += f"""<div class="lu-row">
+                    <span class="lu-name">{nm}</span>
+                    <span class="lu-opp">vs {op}</span>
+                    <span class="lu-sal">${s:,}</span>
+                    <span class="lu-pts">{pr:.1f}</span>
+                </div>"""
+            st.markdown(f"""<div class="lineup-card">
+                <div class="lu-header"><span>Lineup #{rank}</span><span class="lu-proj">{proj:.2f} pts</span></div>
+                {rows_html}
+                <div class="lu-footer"><span>${sal:,}</span><span>{proj:.2f}</span></div>
+            </div>""", unsafe_allow_html=True)
+        if len(sel) > 20:
+            st.caption(f"+ {len(sel)-20} more lineups (see Export tab)")
 
 # ============================================================
 # TAB 4: EXPORT
 # ============================================================
 with tab4:
-    st.markdown("## Export Lineups")
+    st.markdown('<div class="section-header">Export</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Download lineup files for DraftKings</div>', unsafe_allow_html=True)
 
-    if 'selected_lineups' not in st.session_state:
-        st.info("Generate lineups in the Lineup Builder tab first.")
+    if 'sel' not in st.session_state:
+        st.info("Generate lineups in the Builder tab first.")
         st.stop()
 
-    selected = st.session_state.selected_lineups
-    player_data = st.session_state.player_data_for_opt
+    sel = st.session_state.sel; pd_opt = st.session_state.opt_data
 
-    # DK Upload CSV
-    st.markdown("### DraftKings Upload CSV")
-    st.caption("Drop this directly into DraftKings bulk lineup import.")
-
-    upload_rows = []
-    for proj, sal, pidxs in selected:
-        name_sal = sorted([(player_data[i]['name'], player_data[i]['salary'], player_data[i]['id'])
-                            for i in pidxs], key=lambda x: -x[1])
-        upload_rows.append([str(ns[2]) for ns in name_sal])
-
+    # DK Upload
     upload_csv = "P,P,P,P,P,P\n"
-    upload_csv += "\n".join([",".join(row) for row in upload_rows])
+    for proj, sal, pidxs in sel:
+        ns = sorted([(pd_opt[i]['name'], pd_opt[i]['salary'], pd_opt[i]['id']) for i in pidxs], key=lambda x: -x[1])
+        upload_csv += ",".join(str(n[2]) for n in ns) + "\n"
 
-    st.download_button(
-        label="📥 Download DK Upload CSV",
-        data=upload_csv,
-        file_name="dk_tennis_upload.csv",
-        mime="text/csv",
-        type="primary",
-        use_container_width=True,
-    )
+    st.download_button("📥  DraftKings Upload CSV", upload_csv, "dk_upload.csv", "text/csv",
+                        type="primary", use_container_width=True)
 
-    # Readable Lineups CSV
-    st.markdown("### Readable Lineups CSV")
-    readable_rows = []
-    for rank, (proj, sal, pidxs) in enumerate(selected, 1):
-        name_sal = sorted([(player_data[i]['name'], player_data[i]['salary'])
-                            for i in pidxs], key=lambda x: -x[1])
-        row = {'Rank': rank, 'Proj': proj, 'Salary': sal}
-        for j, (n, s) in enumerate(name_sal):
-            row[f'P{j+1}'] = n
-        readable_rows.append(row)
+    st.markdown("")
 
-    readable_df = pd.DataFrame(readable_rows)
-    readable_csv = readable_df.to_csv(index=False)
+    # Readable
+    rows = []
+    for rank, (proj, sal, pidxs) in enumerate(sel, 1):
+        ns = sorted([(pd_opt[i]['name'], pd_opt[i]['salary']) for i in pidxs], key=lambda x: -x[1])
+        row = {'#': rank, 'Proj': proj, 'Salary': sal}
+        for j, (n, s) in enumerate(ns): row[f'P{j+1}'] = n
+        rows.append(row)
+    r_csv = pd.DataFrame(rows).to_csv(index=False)
+    st.download_button("📥  Readable Lineups CSV", r_csv, "lineups.csv", "text/csv", use_container_width=True)
 
-    st.download_button(
-        label="📥 Download Readable Lineups CSV",
-        data=readable_csv,
-        file_name="dk_tennis_lineups.csv",
-        mime="text/csv",
-        use_container_width=True,
-    )
+    st.markdown("")
 
-    # Exposure CSV
-    st.markdown("### Exposure Report CSV")
-    player_counts = st.session_state.player_counts
-    exp_rows = []
-    for i, pd_item in enumerate(player_data):
-        cnt = player_counts[i]
-        exp_rows.append({
-            'Player': pd_item['name'],
-            'Salary': pd_item['salary'],
-            'Projection': pd_item['projection'],
-            'Value': pd_item['value'],
-            'Count': cnt,
-            'Exposure_Pct': round(cnt / len(selected) * 100, 1),
-        })
-    exp_df = pd.DataFrame(exp_rows).sort_values('Value', ascending=False)
-    exp_csv = exp_df.to_csv(index=False)
-
-    st.download_button(
-        label="📥 Download Exposure Report CSV",
-        data=exp_csv,
-        file_name="dk_tennis_exposure.csv",
-        mime="text/csv",
-        use_container_width=True,
-    )
+    # Exposure
+    pcounts = st.session_state.pcounts
+    e_rows = [{'Player': pd_opt[i]['name'], 'Salary': pd_opt[i]['salary'], 'Proj': pd_opt[i]['projection'],
+                'Value': pd_opt[i]['value'], 'Count': pcounts[i], 'Exp%': round(pcounts[i]/len(sel)*100,1)}
+               for i in range(len(pd_opt))]
+    e_csv = pd.DataFrame(e_rows).sort_values('Value', ascending=False).to_csv(index=False)
+    st.download_button("📥  Exposure Report CSV", e_csv, "exposure.csv", "text/csv", use_container_width=True)
